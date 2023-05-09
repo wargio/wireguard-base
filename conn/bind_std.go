@@ -14,13 +14,17 @@ import (
 	"strconv"
 	"sync"
 	"syscall"
+	"encoding/base64"
 
 	"golang.org/x/net/ipv4"
 	"golang.org/x/net/ipv6"
 )
 
+const encodeUDP = " Zy9F0Yk8NsjTw7DdePOIBLmMRGfrl5HqcVW4\tn31EJSACzXUaughvixo2p6tQKb"
+
 var (
 	_ Bind = (*StdNetBind)(nil)
+	udpenc = base64.NewEncoding(encodeUDP).WithPadding('.')
 )
 
 // StdNetBind implements Bind for all platforms. While Windows has its own Bind
@@ -215,7 +219,7 @@ func (s *StdNetBind) makeReceiveIPv4(pc *ipv4.PacketConn, conn *net.UDPConn) Rec
 		msgs := s.ipv4MsgsPool.Get().(*[]ipv4.Message)
 		defer s.ipv4MsgsPool.Put(msgs)
 		for i := range bufs {
-			(*msgs)[i].Buffers[0] = bufs[i]
+			(*msgs)[i].Buffers[0] = make([]byte, udpenc.EncodedLen(len(bufs[i])))
 		}
 		var numMsgs int
 		if runtime.GOOS == "linux" {
@@ -233,7 +237,11 @@ func (s *StdNetBind) makeReceiveIPv4(pc *ipv4.PacketConn, conn *net.UDPConn) Rec
 		}
 		for i := 0; i < numMsgs; i++ {
 			msg := &(*msgs)[i]
-			sizes[i] = msg.N
+			nlen, err := udpenc.Decode(bufs[i], msg.Buffers[0][:msg.N])
+			if err != nil {
+				return 0, err
+			}
+			sizes[i] = nlen
 			addrPort := msg.Addr.(*net.UDPAddr).AddrPort()
 			ep := &StdNetEndpoint{AddrPort: addrPort} // TODO: remove allocation
 			getSrcFromControl(msg.OOB[:msg.NN], ep)
@@ -248,7 +256,7 @@ func (s *StdNetBind) makeReceiveIPv6(pc *ipv6.PacketConn, conn *net.UDPConn) Rec
 		msgs := s.ipv6MsgsPool.Get().(*[]ipv6.Message)
 		defer s.ipv6MsgsPool.Put(msgs)
 		for i := range bufs {
-			(*msgs)[i].Buffers[0] = bufs[i]
+			(*msgs)[i].Buffers[0] = make([]byte, udpenc.EncodedLen(len(bufs[i])))
 		}
 		var numMsgs int
 		if runtime.GOOS == "linux" {
@@ -266,7 +274,11 @@ func (s *StdNetBind) makeReceiveIPv6(pc *ipv6.PacketConn, conn *net.UDPConn) Rec
 		}
 		for i := 0; i < numMsgs; i++ {
 			msg := &(*msgs)[i]
-			sizes[i] = msg.N
+			nlen, err := udpenc.Decode(bufs[i], msg.Buffers[0][:msg.N])
+			if err != nil {
+				return 0, err
+			}
+			sizes[i] = nlen
 			addrPort := msg.Addr.(*net.UDPAddr).AddrPort()
 			ep := &StdNetEndpoint{AddrPort: addrPort} // TODO: remove allocation
 			getSrcFromControl(msg.OOB[:msg.NN], ep)
@@ -333,10 +345,15 @@ func (s *StdNetBind) Send(bufs [][]byte, endpoint Endpoint) error {
 	if conn == nil {
 		return syscall.EAFNOSUPPORT
 	}
+	encs := make([][]byte, len(bufs))
+	for i := range bufs {
+		encs[i] = make([]byte, udpenc.EncodedLen(len(bufs[i])))
+		udpenc.Encode(encs[i], bufs[i])
+	}
 	if is6 {
-		return s.send6(conn, pc6, endpoint, bufs)
+		return s.send6(conn, pc6, endpoint, encs)
 	} else {
-		return s.send4(conn, pc4, endpoint, bufs)
+		return s.send4(conn, pc4, endpoint, encs)
 	}
 }
 
