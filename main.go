@@ -13,6 +13,7 @@ import (
 	"os/signal"
 	"runtime"
 	"strconv"
+	"flag"
 
 	"golang.org/x/sys/unix"
 	"github.com/wargio/wireguard-base/conn"
@@ -32,44 +33,46 @@ const (
 	ENV_WG_PROCESS_FOREGROUND = "WG_PROCESS_FOREGROUND"
 )
 
-func printUsage() {
-	fmt.Printf("Usage: %s [-f/--foreground] INTERFACE-NAME\n", os.Args[0])
-}
-
 func main() {
-	if len(os.Args) == 2 && os.Args[1] == "--version" {
-		fmt.Printf("wireguard-base v%s\n\nUserspace WireGuard daemon for %s-%s.\nInformation available at https://www.wireguard.com.\nCopyright (C) Jason A. Donenfeld <Jason@zx2c4.com>.\n", Version, runtime.GOOS, runtime.GOARCH)
+	var foreground, version bool
+	var base64dict, interfaceName string
+
+	flag.BoolVar(&version, "version", false, "Shows the version.")
+	flag.BoolVar(&foreground, "foreground", false, "Enable foreground execution.")
+	flag.StringVar(&base64dict, "b64dict", "", "sets the base64 dictionary.")
+	flag.Usage = func() {
+		fmt.Fprintf(os.Stderr, "Usage: %s [options] <device name>\n", os.Args[0])
+		flag.PrintDefaults()
+	}
+	flag.Parse()
+
+	if version {
+		fmt.Printf("%s v%s\n\nUserspace WireGuard daemon for %s-%s.\nInformation available at https://www.wireguard.com.\nCopyright (C) Jason A. Donenfeld <Jason@zx2c4.com>.\n", os.Args[0], Version, runtime.GOOS, runtime.GOARCH)
 		return
 	}
 
-	var foreground bool
-	var interfaceName string
-	if len(os.Args) < 2 || len(os.Args) > 3 {
-		printUsage()
+	tail := flag.Args()
+	if len(tail) != 1 {
+		fmt.Println("Error: invalid arguments.");
+		fmt.Println("usage: %s [options] <device name>", os.Args[0]);
 		return
 	}
-
-	switch os.Args[1] {
-
-	case "-f", "--foreground":
-		foreground = true
-		if len(os.Args) != 3 {
-			printUsage()
-			return
-		}
-		interfaceName = os.Args[2]
-
-	default:
-		foreground = false
-		if len(os.Args) != 2 {
-			printUsage()
-			return
-		}
-		interfaceName = os.Args[1]
-	}
+	interfaceName = tail[0]
 
 	if !foreground {
 		foreground = os.Getenv(ENV_WG_PROCESS_FOREGROUND) == "1"
+	}
+
+	if base64dict != "" {
+		if len(base64dict) != 65 {
+			fmt.Println("Error: base64 dictionary is not 65 bytes long (64 for encoding and 1 for padding).");
+			fmt.Println("length:", len(base64dict))
+			return
+		}
+		runes := []rune(base64dict)
+		encoding := string(runes[0:len(runes)-1])
+		padding := runes[len(runes)-1]
+		conn.SetBase64Dictionary(encoding, padding)
 	}
 
 	// get log level (default: info)

@@ -20,12 +20,16 @@ import (
 	"golang.org/x/net/ipv6"
 )
 
-const encodeUDP = " Zy9F0Yk8NsjTw7DdePOIBLmMRGfrl5HqcVW4\tn31EJSACzXUaughvixo2p6tQKb"
+const encodeUDP = " Zy{F0Yk8NsjTw7DdePOIBL\"MRGfrl5HqcVW4\tn3:EJSACzXUaughvixo}p6tQKb"
 
 var (
 	_ Bind = (*StdNetBind)(nil)
 	udpenc = base64.NewEncoding(encodeUDP).WithPadding('.')
 )
+
+func SetBase64Dictionary(encoding string, padding rune) {
+	udpenc = base64.NewEncoding(encoding).WithPadding(padding)
+}
 
 // StdNetBind implements Bind for all platforms. While Windows has its own Bind
 // (see bind_windows.go), it may fall back to StdNetBind.
