@@ -8,18 +8,18 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"os"
 	"os/signal"
 	"runtime"
 	"strconv"
-	"flag"
 
-	"golang.org/x/sys/unix"
 	"github.com/wargio/wireguard-base/conn"
 	"github.com/wargio/wireguard-base/device"
 	"github.com/wargio/wireguard-base/ipc"
 	"github.com/wargio/wireguard-base/tun"
+	"golang.org/x/sys/unix"
 )
 
 const (
@@ -53,8 +53,8 @@ func main() {
 
 	tail := flag.Args()
 	if len(tail) != 1 {
-		fmt.Println("Error: invalid arguments.");
-		fmt.Println("usage: %s [options] <device name>", os.Args[0]);
+		fmt.Println("Error: invalid arguments.")
+		fmt.Printf("usage: %s [options] <device name>\n", os.Args[0])
 		return
 	}
 	interfaceName = tail[0]
@@ -65,12 +65,12 @@ func main() {
 
 	if base64dict != "" {
 		if len(base64dict) != 65 {
-			fmt.Println("Error: base64 dictionary is not 65 bytes long (64 for encoding and 1 for padding).");
+			fmt.Println("Error: base64 dictionary is not 65 bytes long (64 for encoding and 1 for padding).")
 			fmt.Println("length:", len(base64dict))
 			return
 		}
 		runes := []rune(base64dict)
-		encoding := string(runes[0:len(runes)-1])
+		encoding := string(runes[0 : len(runes)-1])
 		padding := runes[len(runes)-1]
 		conn.SetBase64Dictionary(encoding, padding)
 	}

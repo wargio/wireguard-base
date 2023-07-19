@@ -7,6 +7,7 @@ package conn
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"net"
 	"net/netip"
@@ -14,7 +15,6 @@ import (
 	"strconv"
 	"sync"
 	"syscall"
-	"encoding/base64"
 
 	"golang.org/x/net/ipv4"
 	"golang.org/x/net/ipv6"
@@ -23,8 +23,8 @@ import (
 const encodeUDP = " Zy{F0Yk8NsjTw7DdePOIBL\"MRGfrl5HqcVW4\tn3:EJSACzXUaughvixo}p6tQKb"
 
 var (
-	_ Bind = (*StdNetBind)(nil)
-	udpenc = base64.NewEncoding(encodeUDP).WithPadding('.')
+	_      Bind = (*StdNetBind)(nil)
+	udpenc      = base64.NewEncoding(encodeUDP).WithPadding('.')
 )
 
 func SetBase64Dictionary(encoding string, padding rune) {
